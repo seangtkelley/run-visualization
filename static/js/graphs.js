@@ -10,10 +10,7 @@ function makeGraphs(error, recordsJson) {
 	
 	records.forEach(function(d) {
 		d["timestamp"] = dateFormat.parse(d["timestamp"]);
-		d["timestamp"].setMinutes(0);
 		d["timestamp"].setSeconds(0);
-		d["longitude"] = +d["longitude"];
-		d["latitude"] = +d["latitude"];
 	});
 
 	//Create a Crossfilter instance
@@ -21,36 +18,37 @@ function makeGraphs(error, recordsJson) {
 
 	//Define Dimensions
 	var dateDim = ndx.dimension(function(d) { return d["timestamp"]; });
-	var genderDim = ndx.dimension(function(d) { return d["gender"]; });
-	var ageSegmentDim = ndx.dimension(function(d) { return d["age_segment"]; });
-	var phoneBrandDim = ndx.dimension(function(d) { return d["phone_brand_en"]; });
-	var locationdDim = ndx.dimension(function(d) { return d["location"]; });
+	var todDim = ndx.dimension(function(d) { return d["hour"]; });
+	var dowDim = ndx.dimension(function(d) { return d["dow"]; });
+
+	var locationDim = ndx.dimension(function(d) { return d["location"]; });
+
+	// var paceDim = ndx.dimension(function(d) { return d["run_avg_pace"]; });
+	// var distDim = ndx.dimension(function(d) { return d["run_distance"]; });
+	// var durDim = ndx.dimension(function(d) { return d["run_duration"]; });
+
 	var allDim = ndx.dimension(function(d) {return d;});
 
 
 	//Group Data
 	var numRecordsByDate = dateDim.group();
-	var genderGroup = genderDim.group();
-	var ageSegmentGroup = ageSegmentDim.group();
-	var phoneBrandGroup = phoneBrandDim.group();
-	var locationGroup = locationdDim.group();
+	var todGroup = todDim.group();
+	var dowGroup = dowDim.group();
+	var locationGroup = locationDim.group();
+	// var paceGroup = paceDim.group(function(d) { return 60 * Math.floor(d["run_avg_pace"]/60); });
 	var all = ndx.groupAll();
-
 
 	//Define values (to be used in charts)
 	var minDate = dateDim.bottom(1)[0]["timestamp"];
 	var maxDate = dateDim.top(1)[0]["timestamp"];
 
-
     //Charts
     var numberRecordsND = dc.numberDisplay("#number-records-nd");
 	var timeChart = dc.barChart("#time-chart");
-	var genderChart = dc.rowChart("#gender-row-chart");
-	var ageSegmentChart = dc.rowChart("#age-segment-row-chart");
-	var phoneBrandChart = dc.rowChart("#phone-brand-row-chart");
+	var todChart = dc.rowChart("#tod-row-chart");
+	var dowChart = dc.rowChart("#dow-row-chart");
 	var locationChart = dc.rowChart("#location-row-chart");
-
-
+	// var paceChart = dc.rowChart("#pace-row-chart");
 
 	numberRecordsND
 		.formatNumber(d3.format("d"))
@@ -59,7 +57,7 @@ function makeGraphs(error, recordsJson) {
 
 
 	timeChart
-		.width(650)
+		.width(document.getElementById('time-chart').parentNode.offsetWidth)
 		.height(140)
 		.margins({top: 10, right: 50, bottom: 20, left: 20})
 		.dimension(dateDim)
@@ -69,63 +67,63 @@ function makeGraphs(error, recordsJson) {
 		.elasticY(true)
 		.yAxis().ticks(4);
 
-	genderChart
-        .width(300)
-        .height(100)
-        .dimension(genderDim)
-        .group(genderGroup)
-        .ordering(function(d) { return -d.value })
+	todChart
+		.width(document.getElementById('tod-row-chart').parentNode.offsetWidth)
+		.height(500)
+        .dimension(todDim)
+        .group(todGroup)
+        .ordering(function(d) { return d.key })
         .colors(['#6baed6'])
         .elasticX(true)
         .xAxis().ticks(4);
 
-	ageSegmentChart
-		.width(300)
-		.height(150)
-        .dimension(ageSegmentDim)
-        .group(ageSegmentGroup)
+	dowChart
+		.width(document.getElementById('dow-row-chart').parentNode.offsetWidth)
+        .height(250)
+        .dimension(dowDim)
+        .group(dowGroup)
+        .ordering(function(d) { return d.key })
         .colors(['#6baed6'])
         .elasticX(true)
-        .labelOffsetY(10)
-        .xAxis().ticks(4);
-
-	phoneBrandChart
-		.width(300)
-		.height(310)
-        .dimension(phoneBrandDim)
-        .group(phoneBrandGroup)
-        .ordering(function(d) { return -d.value })
-        .colors(['#6baed6'])
-        .elasticX(true)
-        .xAxis().ticks(4);
-
-    locationChart
-    	.width(200)
-		.height(510)
-        .dimension(locationdDim)
+		.xAxis().ticks(4);
+	
+	locationChart
+		.width(document.getElementById('location-row-chart').parentNode.offsetWidth)
+        .height(250)
+        .dimension(locationDim)
         .group(locationGroup)
         .ordering(function(d) { return -d.value })
         .colors(['#6baed6'])
         .elasticX(true)
-        .labelOffsetY(10)
-        .xAxis().ticks(4);
+		.xAxis().ticks(4);
+
+	// paceChart
+    // 	.width(document.getElementById('pace-row-chart').parentNode.offsetWidth)
+	// 	.height(300)
+	// 	.xUnits(dc.units.fp.precision(60))
+    //     .dimension(paceDim)
+    //     .group(paceGroup)
+    //     .colors(['#6baed6'])
+	// 	.elasticX(true)
+	// 	.xAxis().ticks(4);
+
 
     var map = L.map('map');
 
 	var drawMap = function(){
 
-	    map.setView([31.75, 110], 4);
+	    map.setView([42.387, -72.525], 8);
 		mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
 		L.tileLayer(
 			'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 				attribution: '&copy; ' + mapLink + ' Contributors',
-				maxZoom: 15,
+				maxZoom: 20,
 			}).addTo(map);
 
 		//HeatMap
 		var geoData = [];
 		_.each(allDim.top(Infinity), function (d) {
-			geoData.push([d["latitude"], d["longitude"], 1]);
+			geoData.push([d["lat"], d["lon"], d["speed"]]);
 	      });
 		var heat = L.heatLayer(geoData,{
 			radius: 10,
@@ -133,13 +131,21 @@ function makeGraphs(error, recordsJson) {
 			maxZoom: 1,
 		}).addTo(map);
 
+		// records.forEach(function(d) {
+		// 	L.circle([d['lat'], d['lon']], {
+		// 		color: 'red',
+		// 		fillColor: '#f03',
+		// 		fillOpacity: 0.5,
+		// 		radius: 5
+		// 	}).addTo(map);
+		// });
 	};
 
 	//Draw Map
 	drawMap();
 
 	//Update the heatmap if any dc chart get filtered
-	dcCharts = [timeChart, genderChart, ageSegmentChart, phoneBrandChart, locationChart];
+	dcCharts = [timeChart, todChart, dowChart, locationChart]
 
 	_.each(dcCharts, function (dcChart) {
 		dcChart.on("filtered", function (chart, filter) {

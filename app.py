@@ -1,43 +1,41 @@
-# -*- coding: utf-8 -*-
+import sys
+import json
+import datetime as dt
+import xml.etree.ElementTree
 
 import pandas as pd
 from shapely.geometry import Point, shape
+import pyproj
+import requests
 
 from flask import Flask
 from flask import render_template
-import json
 
+project_path = '/home/sean/Documents/experiments/personal-health-tracking'
+sys.path.append(project_path)
 
-data_path = './input/'
-n_samples = 30000
+from lib import custom_utils
 
-def get_age_segment(age):
-    if age <= 22:
-        return '22-'
-    elif age <= 26:
-        return '23-26'
-    elif age <= 28:
-        return '27-28'
-    elif age <= 32:
-        return '29-32'
-    elif age <= 38:
-        return '33-38'
-    else:
-        return '39+'
+_GEOD = pyproj.Geod(ellps='WGS84')
 
-def get_location(longitude, latitude, provinces_json):
-    
-    point = Point(longitude, latitude)
+data_path = project_path+'/data/01-runkeeper-data-export-2019-01-09-162557'
 
-    for record in provinces_json['features']:
-        polygon = shape(record['geometry'])
-        if polygon.contains(point):
-            return record['properties']['name']
-    return 'other'
+# source: https://stackoverflow.com/questions/20169467/how-to-convert-from-longitude-and-latitude-to-country-or-city
+def get_town(lat, lon):
+    key = "AIzaSyBKPPv_NQDWEjIabqcSCKMlh9BfXhjfv94"
+    url = "https://maps.googleapis.com/maps/api/geocode/json?"
+    url += "latlng=%s,%s&sensor=false&key=%s" % (lat, lon, key)
+    v = requests.get(url)
+    j = json.loads(v.text)
+    components = j['results'][0]['address_components']
+    town = state = None
+    for c in components:
+        if "locality" in c['types']:
+            town = c['long_name']
+        elif "administrative_area_level_1" in c['types']:
+            state = c['short_name']
 
-
-with open(data_path + '/geojson/china_provinces_en.json') as data_file:    
-    provinces_json = json.load(data_file)
+    return town+', '+state if state else "Unknown"
 
 app = Flask(__name__)
 
@@ -47,30 +45,92 @@ def index():
 
 @app.route("/data")
 def get_data():
-    gen_age_tr = pd.read_csv(data_path + 'gender_age_train.csv')
-    ev = pd.read_csv(data_path + 'events.csv')
-    ph_br_dev_model = pd.read_csv(data_path + 'phone_brand_device_model.csv')
+    runkeeper_runs = pd.read_csv(data_path+'/cardioActivities.csv', parse_dates=[1])
 
-    df = gen_age_tr.merge(ev, how='left', on='device_id')
-    df = df.merge(ph_br_dev_model, how='left', on='device_id')
-    #Get n_samples records
-    df = df[df['longitude'] != 0].sample(n=n_samples)
+    # ignore runs with invalid pace
+    runkeeper_runs = runkeeper_runs.dropna(subset=['Average Pace'])
 
+    # convert duration strings to timedeltas
+    runkeeper_runs['Average Pace'] = runkeeper_runs['Average Pace'].apply(custom_utils.duration_to_delta)
+    runkeeper_runs['Duration'] = runkeeper_runs['Duration'].apply(custom_utils.duration_to_delta)
 
-    top_10_brands_en = {'华为':'Huawei', '小米':'Xiaomi', '三星':'Samsung', 'vivo':'vivo', 'OPPO':'OPPO',
-                        '魅族':'Meizu', '酷派':'Coolpad', '乐视':'LeEco', '联想':'Lenovo', 'HTC':'HTC'}
+    # add column with pace in seconds
+    runkeeper_runs['avg_pace_secs'] = runkeeper_runs['Average Pace'].dt.total_seconds()
 
-    df['phone_brand_en'] = df['phone_brand'].apply(lambda phone_brand: top_10_brands_en[phone_brand] 
-                                                    if (phone_brand in top_10_brands_en) else 'Other')
+    # ignore crazy outliers with pace >15 minutes (I sometimes forget to end the run)
+    runkeeper_runs = runkeeper_runs[runkeeper_runs['avg_pace_secs']/60 < 15].reset_index()
 
-    df['age_segment'] = df['age'].apply(lambda age: get_age_segment(age))
+    all_points = []
+    for i, gpx_filename in enumerate(runkeeper_runs['GPX File']):
+        # build path
+        gpx_filepath = data_path+'/'+gpx_filename
+        
+        # load gpx
+        root = xml.etree.ElementTree.parse(gpx_filepath).getroot()
+        
+        # get loop through all points
+        location = ""
+        points = []
+        for trkseg in root[0].findall('{http://www.topografix.com/GPX/1/1}trkseg'):
+            for point in trkseg:
+                # get data from point
+                lat, lon = float(point.get('lat')), float(point.get('lon'))
+                ele = float(point[0].text)
+                timestamp = dt.datetime.strptime(point[1].text, '%Y-%m-%dT%H:%M:%SZ')
+                
+                if not points:
+                    v = 0
+                    location = get_town(lat, lon)
+                    #location = "Unknown"
+                else:
+                    # calculate distance
+                    # Source: https://stackoverflow.com/questions/24968215/python-calculate-speed-distance-direction-from-2-gps-coordinates
+                    try:
+                        # inv returns azimuth, back azimuth and distance
+                        _, _ , d = _GEOD.inv(points[-1]['lon'], points[-1]['lat'], lon, lat) 
+                    except:
+                        raise ValueError("Invalid MGRS point")
+                    
+                    # calculate time different
+                    t = ( (timestamp - points[-1]['timestamp']).total_seconds() )
+                    
+                    # calculate speed (m/s)
+                    if t == 0:
+                        continue
+                        
+                    v = d / t
+                    
+                # append point
+                points.append({
+                    'lat': lat,
+                    'lon': lon,
+                    'ele': ele,
+                    'location': location,
+                    'timestamp': timestamp,
+                    'speed': v,
+                    'run_avg_pace': runkeeper_runs.iloc[i]['avg_pace_secs'],
+                    'run_distance': runkeeper_runs.iloc[i]['Distance (mi)'],
+                    'run_duration': runkeeper_runs.iloc[i]['Duration'].total_seconds()
+                })
 
-    df['location'] = df.apply(lambda row: get_location(row['longitude'], row['latitude'], provinces_json), axis=1)
+        # add this run's points to all points
+        all_points.extend(points)
+    
+    all_points = pd.DataFrame(all_points).dropna()
 
-    cols_to_keep = ['timestamp', 'longitude', 'latitude', 'phone_brand_en', 'gender', 'age_segment', 'location']
-    df_clean = df[cols_to_keep].dropna()
+    # convert timestamp to EST and subsequently string for javascript
+    all_points['timestamp'] = (all_points['timestamp'].dt.tz_localize('UTC').dt.tz_convert('US/Eastern'))
+    all_points['hour'] = all_points['timestamp'].dt.hour
+    all_points['dow'] = all_points['timestamp'].dt.dayofweek
+    all_points['timestamp'] = all_points['timestamp'].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    return df_clean.to_json(orient='records')
+    # get points where I'm most likely running: 1 std dev away from mean
+    mean = all_points.speed.mean()
+    std = all_points.speed.std()
+
+    valid_points = all_points[(all_points.speed > (mean - 1*std)) & (all_points.speed < (mean + 1*std))]
+
+    return valid_points.to_json(orient='records')
 
 
 if __name__ == "__main__":
