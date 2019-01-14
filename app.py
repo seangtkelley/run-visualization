@@ -3,10 +3,12 @@ import json
 import datetime as dt
 import xml.etree.ElementTree
 
+import numpy as np
 import pandas as pd
 from shapely.geometry import Point, shape
 import pyproj
 import requests
+from colour import Color
 
 from flask import Flask
 from flask import render_template
@@ -19,6 +21,9 @@ from lib import custom_utils
 _GEOD = pyproj.Geod(ellps='WGS84')
 
 data_path = project_path+'/data/01-runkeeper-data-export-2019-01-09-162557'
+
+color_range = list(Color("blue").range_to(Color("green"), 5)) + list(Color("green").range_to(Color("yellow"), 5))[1:] + list(Color("yellow").range_to(Color("red"), 5))[1:]
+color_range = [c.hex for c in color_range]
 
 # source: https://stackoverflow.com/questions/20169467/how-to-convert-from-longitude-and-latitude-to-country-or-city
 def get_town(lat, lon):
@@ -129,6 +134,11 @@ def get_data():
     std = all_points.speed.std()
 
     valid_points = all_points[(all_points.speed > (mean - 1*std)) & (all_points.speed < (mean + 1*std))]
+
+    min_speed, max_speed = valid_points['speed'].min(), valid_points['speed'].max()
+    incr = (max_speed - min_speed)/len(color_range)
+    bins = np.arange(min_speed, max_speed, incr)
+    valid_points['color'] = pd.cut(valid_points['speed'], bins=bins, labels=color_range)
 
     return valid_points.to_json(orient='records')
 

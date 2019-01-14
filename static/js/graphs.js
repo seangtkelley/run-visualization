@@ -8,9 +8,15 @@ function makeGraphs(error, recordsJson) {
 	var records = recordsJson;
 	var dateFormat = d3.time.format("%Y-%m-%d %H:%M:%S");
 	
+	var max_speed = 0.0, min_speed = 9999.0;
 	records.forEach(function(d) {
 		d["timestamp"] = dateFormat.parse(d["timestamp"]);
 		d["timestamp"].setSeconds(0);
+		if(d['speed'] > max_speed){
+			max_speed = d['speed'];
+		} else if(d['speed'] < min_speed){
+			min_speed = d['speed'];
+		}
 	});
 
 	//Create a Crossfilter instance
@@ -123,22 +129,13 @@ function makeGraphs(error, recordsJson) {
 		//HeatMap
 		var geoData = [];
 		_.each(allDim.top(Infinity), function (d) {
-			geoData.push([d["lat"], d["lon"], d["speed"]]);
-	      });
+			geoData.push([d["lat"], d["lon"], 1-(d["speed"]-min_speed)/(max_speed - min_speed)]);
+		});
 		var heat = L.heatLayer(geoData,{
-			radius: 10,
-			blur: 20, 
-			maxZoom: 1,
+			minOpacity: 0.25,
+			radius: 3,
+			blur: 5,
 		}).addTo(map);
-
-		// records.forEach(function(d) {
-		// 	L.circle([d['lat'], d['lon']], {
-		// 		color: 'red',
-		// 		fillColor: '#f03',
-		// 		fillOpacity: 0.5,
-		// 		radius: 5
-		// 	}).addTo(map);
-		// });
 	};
 
 	//Draw Map
