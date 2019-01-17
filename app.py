@@ -27,9 +27,10 @@ color_range = [c.hex for c in color_range]
 
 # source: https://stackoverflow.com/questions/20169467/how-to-convert-from-longitude-and-latitude-to-country-or-city
 def get_town(lat, lon):
-    key = "AIzaSyBKPPv_NQDWEjIabqcSCKMlh9BfXhjfv94"
+    with open('../keys.json', 'r') as f:
+        keys = json.loads(f.read())
     url = "https://maps.googleapis.com/maps/api/geocode/json?"
-    url += "latlng=%s,%s&sensor=false&key=%s" % (lat, lon, key)
+    url += "latlng=%s,%s&sensor=false&key=%s" % (lat, lon, keys['google_geocoding_api_key'])
     v = requests.get(url)
     j = json.loads(v.text)
     components = j['results'][0]['address_components']
