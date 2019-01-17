@@ -10,7 +10,7 @@ import pyproj
 import requests
 from colour import Color
 
-from flask import Flask
+from flask import Flask, Response
 from flask import render_template
 
 project_path = '/home/sean/Documents/experiments/personal-health-tracking'
@@ -48,8 +48,17 @@ app = Flask(__name__)
 def index():
     return render_template("index.html")
 
-@app.route("/data")
-def get_data():
+@app.route("/data/load")
+def data_load():
+    try:
+        data = pd.read_csv('./data/run_data.csv')
+        return data.to_json(orient='records')
+    except FileNotFoundError:
+        # Keep preset values
+        return Response("{'error':'data not generated'}", status=404, mimetype='application/json')
+
+@app.route("/data/generate")
+def data_generate():
     runkeeper_runs = pd.read_csv(data_path+'/cardioActivities.csv', parse_dates=[1])
 
     # ignore runs with invalid pace
@@ -86,7 +95,7 @@ def get_data():
                 if not points:
                     v = 0
                     location = get_town(lat, lon)
-                    #location = "Unknown"
+                    # location = "Unknown"
                 else:
                     # calculate distance
                     # Source: https://stackoverflow.com/questions/24968215/python-calculate-speed-distance-direction-from-2-gps-coordinates
@@ -140,7 +149,10 @@ def get_data():
     bins = np.arange(min_speed, max_speed, incr)
     valid_points['color'] = pd.cut(valid_points['speed'], bins=bins, labels=color_range)
 
-    return valid_points.to_json(orient='records')
+    # save file
+    valid_points.to_csv('./data/run_data.csv')
+
+    return Response("{'success':'data generated successfully.'}", status=200, mimetype='application/json')
 
 
 if __name__ == "__main__":
