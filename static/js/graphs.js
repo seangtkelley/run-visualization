@@ -114,9 +114,89 @@ function makeGraphs(error, recordsJson) {
 	// 	.xAxis().ticks(4);
 
 
-    var map = L.map('map');
+	var map = L.map('map');
+	
+	var coordSpeedSums = {};
+	var coordSpeedCounts = {};
+	var maxSpeed = -9999;
+	var minSpeed = 9999;
 
-	var drawMap = function(){
+	async function calcSums(){
+		_.each(allDim.top(Infinity), function (d) {
+			// convert to web mercator: lon,lat
+			var webMercCoords = proj4("EPSG:4326", 'EPSG:3857', [d['lon'], d['lat']]);
+
+			// round to nearest 10: lon,lat
+			var roundedWebMercCoords = [Math.round(webMercCoords[0] / 10) * 10, Math.round(webMercCoords[1] / 10) * 10];
+
+			// convert back: lon,lat
+			var roundedWgsCoords = proj4("EPSG:3857", "EPSG:4326", roundedWebMercCoords);
+
+			// create string for point: lat,lon
+			var coord_wkt = roundedWgsCoords[1].toString()+","+roundedWgsCoords[0].toString();
+
+			// add to hash map
+			coordSpeedSums[coord_wkt] = (coordSpeedSums[coord_wkt] || 0) + d["speed"];
+			coordSpeedCounts[coord_wkt] = (coordSpeedCounts[coord_wkt] || 0) + 1;
+
+			// record max and min
+			maxSpeed = (d["speed"] > maxSpeed) ? d["speed"] : maxSpeed;
+			minSpeed = (d["speed"] < minSpeed) ? d["speed"] : minSpeed;
+		});
+		return;
+	};
+
+	// palettes taken from Bokeh: https://bokeh.pydata.org/en/latest/docs/reference/palettes.html
+	var plasma4 = [
+		[ 0, [12, 7, 134] ],
+		[ 0.33, [155, 23, 158] ],
+		[ 0.66, [236, 120, 83] ],
+		[ 1.0, [239, 248, 33] ]
+	];
+	
+	var viridis5 = [
+		[ 0, [68, 1, 84] ],
+		[ 0.25, [59, 81, 138] ],
+		[ 0.50, [32, 143, 140] ],
+		[ 0.75, [91, 200, 98] ],
+		[ 1.0, [253, 231, 36] ]
+	];
+
+	function pickHex(color1, color2, weight) {
+		var p = weight;
+		var w = p * 2 - 1;
+		var w1 = (w/1+1) / 2;
+		var w2 = 1 - w1;
+		var rgb = [Math.round(color1[0] * w1 + color2[0] * w2),
+			Math.round(color1[1] * w1 + color2[1] * w2),
+			Math.round(color1[2] * w1 + color2[2] * w2)];
+		return rgb;
+	}
+
+	function getColorFromVal(val, min, max, gradient){
+		// get speed as ratio of distribution of speeds
+		var ratio = (val-min)/(max-min);
+
+		var colorRange = []
+        $.each(gradient, function( index, value ) {
+            if(ratio < value[0]) {
+                colorRange = [index-1,index]
+                return false;
+            }
+        });
+        
+        //Get the two closest colors
+        var firstcolor = gradient[colorRange[0]][1];
+		var secondcolor = gradient[colorRange[1]][1];
+        
+        //Calculate ratio between the two closest colors
+		var innerRatio = ratio/gradient[colorRange[1]][0];
+        
+        //Get the color with pickHex(thx, less.js's mix function!)
+		return pickHex( secondcolor, firstcolor, innerRatio );
+	}
+
+	var drawMap = async function(){
 
 	    map.setView([42.387, -72.525], 8);
 		mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
@@ -126,16 +206,22 @@ function makeGraphs(error, recordsJson) {
 				maxZoom: 20,
 			}).addTo(map);
 
-		//HeatMap
-		var geoData = [];
-		_.each(allDim.top(Infinity), function (d) {
-			geoData.push([d["lat"], d["lon"], 1-(d["speed"]-min_speed)/(max_speed - min_speed)]);
-		});
-		var heat = L.heatLayer(geoData,{
-			minOpacity: 0.25,
-			radius: 3,
-			blur: 5,
-		}).addTo(map);
+		// wait for calculating sums finishes
+		await calcSums();
+
+		// display circles
+		for (var key in coordSpeedSums) {
+			if (coordSpeedSums.hasOwnProperty(key)) {
+				var mean = coordSpeedSums[key]/coordSpeedCounts[key];
+				var coord = key.split(',');
+				var color = "rgb("+getColorFromVal(mean, minSpeed, maxSpeed, viridis5).join()+")";
+				L.circle([parseFloat(coord[0]), parseFloat(coord[1])], 2, {
+					color: color,
+					fillColor: color,
+					fillOpacity: 0.5
+				}).addTo(map);
+			}
+		}
 	};
 
 	//Draw Map
