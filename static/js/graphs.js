@@ -8,15 +8,9 @@ function makeGraphs(error, recordsJson) {
 	var records = recordsJson;
 	var dateFormat = d3.time.format("%Y-%m-%d %H:%M:%S");
 	
-	var max_speed = 0.0, min_speed = 9999.0;
 	records.forEach(function(d) {
 		d["timestamp"] = dateFormat.parse(d["timestamp"]);
 		d["timestamp"].setSeconds(0);
-		if(d['speed'] > max_speed){
-			max_speed = d['speed'];
-		} else if(d['speed'] < min_speed){
-			min_speed = d['speed'];
-		}
 	});
 
 	//Create a Crossfilter instance
@@ -115,13 +109,19 @@ function makeGraphs(error, recordsJson) {
 
 
 	var map = L.map('map');
-	
+
 	var coordSpeedSums = {};
 	var coordSpeedCounts = {};
 	var maxSpeed = -9999;
 	var minSpeed = 9999;
 
 	async function calcSums(){
+		// init vars
+		coordSpeedSums = {};
+		coordSpeedCounts = {};
+		maxSpeed = -9999;
+		minSpeed = 9999;
+
 		_.each(allDim.top(Infinity), function (d) {
 			// convert to web mercator: lon,lat
 			var webMercCoords = proj4("EPSG:4326", 'EPSG:3857', [d['lon'], d['lat']]);
