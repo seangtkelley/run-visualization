@@ -43,6 +43,9 @@ def get_town(lat, lon):
 
     return town+', '+state if state else "Unknown"
 
+def round_base(x, base=5):
+    return int(base * round(float(x)/base))
+
 app = Flask(__name__)
 
 @app.route("/")
@@ -123,9 +126,9 @@ def data_generate():
                     'location': location,
                     'timestamp': timestamp,
                     'speed': v,
-                    'run_avg_pace': runkeeper_runs.iloc[i]['avg_pace_secs'],
+                    'run_avg_pace': runkeeper_runs.iloc[i]['avg_pace_secs']/60,
                     'run_distance': runkeeper_runs.iloc[i]['Distance (mi)'],
-                    'run_duration': runkeeper_runs.iloc[i]['Duration'].total_seconds()
+                    'run_duration': runkeeper_runs.iloc[i]['Duration'].total_seconds()/60
                 })
 
         # add this run's points to all points
@@ -149,6 +152,11 @@ def data_generate():
     incr = (max_speed - min_speed)/len(color_range)
     bins = np.arange(min_speed, max_speed, incr)
     valid_points['color'] = pd.cut(valid_points['speed'], bins=bins, labels=color_range)
+
+    # convert numerical values to categorical for better graphs
+    valid_points['run_avg_pace'] = pd.cut(valid_points['run_avg_pace'], bins=pd.interval_range(start=round_base(valid_points['run_avg_pace'].min()-5), end=round_base(valid_points['run_avg_pace'].max()+5), freq=0.5))
+    valid_points['run_distance'] = pd.cut(valid_points['run_distance'], bins=pd.interval_range(start=np.floor(valid_points['run_distance'].min()), end=np.ceil(valid_points['run_distance'].max()), freq=1))
+    valid_points['run_duration'] = pd.cut(valid_points['run_duration'], bins=pd.interval_range(start=round_base(valid_points['run_duration'].min()-5), end=round_base(valid_points['run_duration'].max()+5), freq=5))
 
     # save file
     valid_points.to_csv('./data/run_data.csv')

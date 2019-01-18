@@ -26,12 +26,11 @@
     <div class="row">
 
       <div class="col-sm-6">
-        <div class="row">
 
           <div class="col-sm-12">
             <div class="chart-wrapper">
               <div class="chart-title">
-                Number of Events
+                Date Recorded
               </div>
               <div class="chart-stage">
                 <div id="time-chart"></div>
@@ -45,90 +44,67 @@
                 Time of Day
               </div>
               <div class="chart-stage">
-                <div id="tod-row-chart"></div>
+                <div id="tod-chart"></div>
               </div>
             </div>
           </div>
-
 
           <div class="col-sm-6">
 
-            <div class="row">
-            <div class="col-sm-12">
-              <div class="chart-wrapper">
-                <div class="chart-title">
-                  Day of Week
+                <div class="chart-wrapper">
+                  <div class="chart-title">
+                    Day of Week (0=Monday)
+                  </div>
+                  <div class="chart-stage">
+                    <div id="dow-chart"></div>
+                  </div>
                 </div>
-                <div class="chart-stage">
-                  <div id="dow-row-chart"></div>
-                </div>
-              </div>
-            </div>
-            </div>
 
-            <div class="row">
-            <div class="col-sm-12">
-              <div class="chart-wrapper">
-                <div class="chart-title">
-                  Location
+                <div class="chart-wrapper">
+                  <div class="chart-title">
+                    Duration (min)
+                  </div>
+                  <div class="chart-stage">
+                    <div id="duration-chart"></div>
+                  </div>
                 </div>
-                <div class="chart-stage">
-                  <div id="location-row-chart"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+
           </div>
 
-
-        </div>
       </div>
 
 
       <div class="col-sm-2">
-        <div class="row">
 
-          <div class="col-sm-12">
             <div class="chart-wrapper">
               <div class="chart-title">
-                Pace
+                Pace (min)
               </div>
               <div class="chart-stage">
-                <div id="pace-bar-chart"></div>
+                <div id="pace-chart"></div>
               </div>
             </div>
 
             <div class="chart-wrapper">
               <div class="chart-title">
-                Duration
+                Distance (mi)
               </div>
               <div class="chart-stage">
-                <div id="duration-bar-chart"></div>
+                <div id="distance-chart"></div>
               </div>
             </div>
 
-            <div class="chart-wrapper">
-              <div class="chart-title">
-                Distance
-              </div>
-              <div class="chart-stage">
-                <div id="distance-bar-chart"></div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
 
 
       <div class="col-sm-4">
 
-        <div class="row">
           <!-- Map -->  
           <div class="col-sm-12"> 
             <div class="chart-wrapper">
               <div class="chart-title">
-                Map
+                Average Speed per 10m x 10m Region
               </div>
               <div class="chart-stage">
                 <div id="map" style="width: 100%; height: 380px"></div>
@@ -136,22 +112,30 @@
             </div>
           </div>
           <!-- Map -->  
-        </div>
 
-        <div class="row">
           <!-- Number of events -->  
           <div class="col-sm-12"> 
             <div class="chart-wrapper">
               <div class="chart-title">
-                Number of Events
+                Number of Points
               </div>
               <div class="chart-stage">
                 <div id="number-records-nd"></div>
               </div>
             </div>
           </div>
-          <!-- Number of events -->  
-        </div>
+          <!-- Number of events -->
+
+          <div class="col-sm-12">
+            <div class="chart-wrapper">
+              <div class="chart-title">
+                Location
+              </div>
+              <div class="chart-stage">
+                <div id="location-chart"></div>
+              </div>
+            </div>
+          </div>
 
       </div>
 

@@ -20,13 +20,10 @@ function makeGraphs(error, recordsJson) {
 	var dateDim = ndx.dimension(function(d) { return d["timestamp"]; });
 	var todDim = ndx.dimension(function(d) { return d["hour"]; });
 	var dowDim = ndx.dimension(function(d) { return d["dow"]; });
-
 	var locationDim = ndx.dimension(function(d) { return d["location"]; });
-
-	// var paceDim = ndx.dimension(function(d) { return d["run_avg_pace"]; });
-	// var distDim = ndx.dimension(function(d) { return d["run_distance"]; });
-	// var durDim = ndx.dimension(function(d) { return d["run_duration"]; });
-
+	var paceDim = ndx.dimension(function(d) { return d["run_avg_pace"]; });
+	var distDim = ndx.dimension(function(d) { return d["run_distance"]; });
+	var durDim = ndx.dimension(function(d) { return d["run_duration"]; });
 	var allDim = ndx.dimension(function(d) {return d;});
 
 
@@ -35,7 +32,9 @@ function makeGraphs(error, recordsJson) {
 	var todGroup = todDim.group();
 	var dowGroup = dowDim.group();
 	var locationGroup = locationDim.group();
-	// var paceGroup = paceDim.group(function(d) { return 60 * Math.floor(d["run_avg_pace"]/60); });
+	var paceGroup = paceDim.group();
+	var distGroup = distDim.group();
+	var durGroup = durDim.group();
 	var all = ndx.groupAll();
 
 	//Define values (to be used in charts)
@@ -45,10 +44,12 @@ function makeGraphs(error, recordsJson) {
     //Charts
     var numberRecordsND = dc.numberDisplay("#number-records-nd");
 	var timeChart = dc.barChart("#time-chart");
-	var todChart = dc.rowChart("#tod-row-chart");
-	var dowChart = dc.rowChart("#dow-row-chart");
-	var locationChart = dc.rowChart("#location-row-chart");
-	// var paceChart = dc.rowChart("#pace-row-chart");
+	var todChart = dc.rowChart("#tod-chart");
+	var dowChart = dc.rowChart("#dow-chart");
+	var locationChart = dc.rowChart("#location-chart");
+	var paceChart = dc.rowChart("#pace-chart");
+	var distChart = dc.rowChart("#distance-chart");
+	var durChart = dc.rowChart("#duration-chart");
 
 	numberRecordsND
 		.formatNumber(d3.format("d"))
@@ -68,8 +69,8 @@ function makeGraphs(error, recordsJson) {
 		.yAxis().ticks(4);
 
 	todChart
-		.width(document.getElementById('tod-row-chart').parentNode.offsetWidth)
-		.height(500)
+		.width(document.getElementById('tod-chart').parentNode.offsetWidth)
+		.height(590)
         .dimension(todDim)
         .group(todGroup)
         .ordering(function(d) { return d.key })
@@ -78,7 +79,7 @@ function makeGraphs(error, recordsJson) {
         .xAxis().ticks(4);
 
 	dowChart
-		.width(document.getElementById('dow-row-chart').parentNode.offsetWidth)
+		.width(document.getElementById('dow-chart').parentNode.offsetWidth)
         .height(250)
         .dimension(dowDim)
         .group(dowGroup)
@@ -88,7 +89,7 @@ function makeGraphs(error, recordsJson) {
 		.xAxis().ticks(4);
 	
 	locationChart
-		.width(document.getElementById('location-row-chart').parentNode.offsetWidth)
+		.width(document.getElementById('location-chart').parentNode.offsetWidth)
         .height(250)
         .dimension(locationDim)
         .group(locationGroup)
@@ -97,18 +98,39 @@ function makeGraphs(error, recordsJson) {
         .elasticX(true)
 		.xAxis().ticks(4);
 
-	// paceChart
-    // 	.width(document.getElementById('pace-row-chart').parentNode.offsetWidth)
-	// 	.height(300)
-	// 	.xUnits(dc.units.fp.precision(60))
-    //     .dimension(paceDim)
-    //     .group(paceGroup)
-    //     .colors(['#6baed6'])
-	// 	.elasticX(true)
-	// 	.xAxis().ticks(4);
+	paceChart
+		.width(document.getElementById('pace-chart').parentNode.offsetWidth)
+		.height(250)
+		.dimension(paceDim)
+		.group(paceGroup)
+		.ordering(function(d) { return parseFloat(d.key.split(',')[0].replace('(', '')) })
+		.colors(['#6baed6'])
+		.elasticX(true)
+		.xAxis().ticks(4);
+
+	distChart
+		.width(document.getElementById('distance-chart').parentNode.offsetWidth)
+		.height(250)
+		.dimension(distDim)
+		.group(distGroup)
+		.ordering(function(d) { return parseFloat(d.key.split(',')[0].replace('(', '')) })
+		.colors(['#6baed6'])
+		.elasticX(true)
+		.xAxis().ticks(4);
+
+	durChart
+		.width(document.getElementById('duration-chart').parentNode.offsetWidth)
+		.height(280)
+		.dimension(durDim)
+		.group(durGroup)
+		.ordering(function(d) { return parseFloat(d.key.split(',')[0].replace('(', '')) })
+		.colors(['#6baed6'])
+		.elasticX(true)
+		.xAxis().ticks(4);
 
 
 	var map = L.map('map');
+	map.setView([42.387, -72.525], 8);
 
 	var coordSpeedSums = {};
 	var coordSpeedCounts = {};
@@ -146,7 +168,7 @@ function makeGraphs(error, recordsJson) {
 		return;
 	};
 
-	// palettes taken from Bokeh: https://bokeh.pydata.org/en/latest/docs/reference/palettes.html
+	// palettes from Bokeh: https://bokeh.pydata.org/en/latest/docs/reference/palettes.html
 	var plasma4 = [
 		[ 0, [12, 7, 134] ],
 		[ 0.33, [155, 23, 158] ],
@@ -198,7 +220,6 @@ function makeGraphs(error, recordsJson) {
 
 	var drawMap = async function(){
 
-	    map.setView([42.387, -72.525], 8);
 		mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
 		L.tileLayer(
 			'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -228,7 +249,7 @@ function makeGraphs(error, recordsJson) {
 	drawMap();
 
 	//Update the heatmap if any dc chart get filtered
-	dcCharts = [timeChart, todChart, dowChart, locationChart]
+	dcCharts = [timeChart, todChart, dowChart, locationChart, paceChart, distChart, durChart]
 
 	_.each(dcCharts, function (dcChart) {
 		dcChart.on("filtered", function (chart, filter) {
