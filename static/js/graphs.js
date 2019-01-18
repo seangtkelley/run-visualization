@@ -58,7 +58,7 @@ function makeGraphs(error, recordsJson) {
 
 
 	timeChart
-		.width(document.getElementById('time-chart').parentNode.offsetWidth)
+		.width($('#time-chart').parent().width())
 		.height(140)
 		.margins({top: 10, right: 50, bottom: 20, left: 20})
 		.dimension(dateDim)
@@ -69,7 +69,7 @@ function makeGraphs(error, recordsJson) {
 		.yAxis().ticks(4);
 
 	todChart
-		.width(document.getElementById('tod-chart').parentNode.offsetWidth)
+		.width($('#tod-chart').parent().width())
 		.height(590)
         .dimension(todDim)
         .group(todGroup)
@@ -79,7 +79,7 @@ function makeGraphs(error, recordsJson) {
         .xAxis().ticks(4);
 
 	dowChart
-		.width(document.getElementById('dow-chart').parentNode.offsetWidth)
+		.width($('#dow-chart').parent().width())
         .height(250)
         .dimension(dowDim)
         .group(dowGroup)
@@ -89,7 +89,7 @@ function makeGraphs(error, recordsJson) {
 		.xAxis().ticks(4);
 	
 	locationChart
-		.width(document.getElementById('location-chart').parentNode.offsetWidth)
+		.width($('#location-chart').parent().width())
         .height(250)
         .dimension(locationDim)
         .group(locationGroup)
@@ -99,7 +99,7 @@ function makeGraphs(error, recordsJson) {
 		.xAxis().ticks(4);
 
 	paceChart
-		.width(document.getElementById('pace-chart').parentNode.offsetWidth)
+		.width($('#pace-chart').parent().width())
 		.height(250)
 		.dimension(paceDim)
 		.group(paceGroup)
@@ -109,7 +109,7 @@ function makeGraphs(error, recordsJson) {
 		.xAxis().ticks(4);
 
 	distChart
-		.width(document.getElementById('distance-chart').parentNode.offsetWidth)
+		.width($('#distance-chart').parent().width())
 		.height(250)
 		.dimension(distDim)
 		.group(distGroup)
@@ -119,7 +119,7 @@ function makeGraphs(error, recordsJson) {
 		.xAxis().ticks(4);
 
 	durChart
-		.width(document.getElementById('duration-chart').parentNode.offsetWidth)
+		.width($('#duration-chart').parent().width())
 		.height(280)
 		.dimension(durDim)
 		.group(durGroup)
@@ -130,7 +130,7 @@ function makeGraphs(error, recordsJson) {
 
 
 	var map = L.map('map');
-	map.setView([42.387, -72.525], 8);
+	map.setView([42.648153, -71.843778], 9);
 
 	var coordSpeedSums = {};
 	var coordSpeedCounts = {};
@@ -183,6 +183,18 @@ function makeGraphs(error, recordsJson) {
 		[ 0.75, [91, 200, 98] ],
 		[ 1.0, [253, 231, 36] ]
 	];
+
+	function displayColorGradient(gradient){
+		htmlStr = '<div style="height: 44.5px; background: linear-gradient(to right,';
+		for(var i = 0; i < gradient.length; i++){
+			htmlStr += 'rgb('+gradient[i][1].join()+')';
+			if (i != gradient.length-1){
+				htmlStr += ', ';
+			}
+		}
+		htmlStr += ')"></div>';
+		$('#color-gradient').html(htmlStr);
+	}
 
 	function pickHex(color1, color2, weight) {
 		var p = weight;
@@ -247,6 +259,7 @@ function makeGraphs(error, recordsJson) {
 
 	//Draw Map
 	drawMap();
+	displayColorGradient(viridis5);
 
 	//Update the heatmap if any dc chart get filtered
 	dcCharts = [timeChart, todChart, dowChart, locationChart, paceChart, distChart, durChart]
