@@ -2,7 +2,7 @@ Inspiration for this visualization: [Interactive Data Visualization of Geospatia
 
 I modified it to show my run habits. Here is my blog post that inspired me to make this: [Becoming a Better Runner using Data](http://seangtkelley.me/blog/2019/01/19/better-runner)
 
-![](data-viz-screenshot.png)
+![](run-viz-screenshot.png)
 
 # Dependencies
 
